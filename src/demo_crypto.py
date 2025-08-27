@@ -123,11 +123,11 @@ signature_data = "EXAMPLE_SIGNATURE_DATA_FOR_DEMONSTRATION_ONLY_NOT_A_REAL_SIGNA
     
     print("\n5. Verifying decrypted license data...")
     if decrypted_license == license_data:
-        print("   ✓ License data matches original")
+        print("   License data matches original")
         # Show a snippet of the decrypted data
         print(f"   Sample: {decrypted_license[:50]}...")
     else:
-        print("   ✗ License data does not match original")
+        print("   License data does not match original")
     
     print("   PASS: License data matches original")
         

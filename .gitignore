@@ -10,6 +10,9 @@ node_modules/
 # Decompilations
 ilspy/
 
+# Logs
+logs/
+
 # Temporary files
 *.tmp
 *.temp

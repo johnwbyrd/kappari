@@ -105,6 +105,25 @@ class Program
                 }
             }
             
+            // Extract registry-related strings for device ID lookup
+            Console.WriteLine();
+            Console.WriteLine("Extracting registry strings for device ID...");
+            
+            int[] registryIndices = { 11696, 11645, 11633, 11530 };
+            
+            foreach (int index in registryIndices)
+            {
+                try
+                {
+                    string value = (string)smethod0.Invoke(null, new object[] { index });
+                    Console.WriteLine("Index " + index + ": '" + value + "'");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Index " + index + ": ERROR - " + ex.Message);
+                }
+            }
+
             // Extract additional potentially useful strings
             Console.WriteLine();
             Console.WriteLine("Extracting additional useful strings...");

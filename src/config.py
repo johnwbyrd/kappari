@@ -10,10 +10,8 @@ from pathlib import Path
 from typing import Optional, Union
 from dotenv import load_dotenv
 
-# Load .env file if it exists
-env_path = Path(__file__).parent.parent / '.env'
-if env_path.exists():
-    load_dotenv(env_path)
+# Load .env file using default approach
+load_dotenv()
 
 
 class Config:
@@ -295,23 +293,23 @@ def reload_config() -> Config:
 
 if __name__ == "__main__":
     # Test configuration loading
+    import log
+    
     try:
         cfg = get_config()
-        print("Configuration loaded successfully")
-        print("-" * 50)
-        print(cfg)
-        print("-" * 50)
+        log.info("Configuration loaded successfully")
+        log.info("Config: %s", cfg)
         
         if cfg.validate_credentials():
-            print("✓ Credentials are set")
+            log.info("Credentials are set")
         else:
-            print("✗ Missing credentials (KAPPARI_EMAIL and/or KAPPARI_PASSWORD)")
+            log.warning("Missing credentials (KAPPARI_EMAIL and/or KAPPARI_PASSWORD)")
         
         if Path(cfg.db_path).exists():
-            print(f"✓ Database found at: {cfg.db_path}")
+            log.info("Database found at: %s", cfg.db_path)
         else:
-            print(f"✗ Database not found at: {cfg.db_path}")
+            log.error("Database not found at: %s", cfg.db_path)
         
     except Exception as e:
-        print(f"Configuration Error: {e}")
+        log.error("Configuration Error: %s", e)
         sys.exit(1)
