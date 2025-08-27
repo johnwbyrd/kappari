@@ -16,7 +16,7 @@ We document API v2 only. There is an older v1 API that is not covered.
 - [Authentication](authentication.md) - Login flow and JWT token management
 - [Encoding](encoding.md) - Request/response formats and compression
 - [Endpoints](endpoints.md) - Endpoint reference
-- [API](api.md) - Paprika REST API
+- [API](api.md) - REST API
 - [SQLite](sqlite.md) - Local SQLite cache structure and usage
 - [Data Schemas](data-schemas.md) - JSON structure for all entities
 - [API Patterns](api-patterns.md) - Common call sequences
@@ -30,21 +30,13 @@ The `src/` directory contains Python implementations of the cryptographic algori
 - `src/paprika_auth.py` - Complete authentication implementation
 - Other utility scripts for analysis and debugging
 
-## Getting Started
-
-1. Read the [Overview](overview.md) for basic API concepts
-2. Understand [Authentication](authentication.md) to get access tokens
-3. Review [Encoding](encoding.md) for request/response formats
-4. Browse [Endpoints](endpoints.md) for available operations
-5. Check [crypto.md](crypto.md) for cryptographic implementation details
-
 ## Legal Notice
 
 Please see our [license](LICENSE.md) covering this documentation and associated software.
 
 This documentation is created through legal clean-room reverse engineering of network traffic from legitimately purchased software for the purpose of interoperability.  We believe that users have the [legal right](https://www.eff.org/issues/coders/reverse-engineering-faq) to access their own data stored in Paprika's cloud service.
 
-Nothing in this documentation permits or enables you to pirate Paprika 3.  Paprika 3 requires a valid license in order to use their online API.  You **shou** buy a copy of Paprika 3 as it is a great recipe database with a great design.
+Nothing in this documentation permits or enables you to pirate Paprika 3.  Paprika 3 requires a valid license in order to use their online API.  You **should** buy a copy of Paprika 3 as it is a great recipe database with a great design.
 
 ## Contributing
 

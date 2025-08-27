@@ -18,15 +18,12 @@ ilspy/
 .env
 .npmrc
 
-# Decompiled code
-ilspy/
-
-# Database files
-database/
-
 # Python cache
 __pycache__/
 *.pyc
+
+# npm files (this is just documentation)
+package*.json
 
 # Other dotfiles
 .[^.]*
