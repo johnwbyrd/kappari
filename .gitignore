@@ -1,0 +1,35 @@
+# Captured traffic data (contains sensitive tokens and personal data)
+captures/
+
+# Testing databases
+database/
+
+# Node modules if we build an MCP
+node_modules/
+
+# Decompilations
+ilspy/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Environment files
+.env
+.npmrc
+
+# Decompiled code
+ilspy/
+
+# Database files
+database/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Other dotfiles
+.[^.]*
+
+# Exceptions (files that should NOT be ignored despite matching above patterns)
+!.gitignore
