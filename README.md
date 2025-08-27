@@ -1,4 +1,4 @@
-# Paprika API v2 Documentation
+# Kappari: Paprika API v2 Documentation
 
 This project documents our understanding of the Paprika Recipe Manager REST API v2 (used by Paprika 3), and its corresponding sqlite database.  This documentation was created from clean-room reverse engineering of network traffic, the Windows .NET executable, and the sqlite file format.
 
