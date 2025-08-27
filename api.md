@@ -21,8 +21,9 @@ https://www.paprikaapp.com/api/v2/
 
 ### Authentication
 - Bearer token authentication using JWT
-- Token included in `Authorization: Bearer {token}` header
-- No API keys or other authentication methods observed
+- Token obtained via `/api/v2/account/login/` endpoint
+- Token included in `Authorization: Bearer {token}` header for subsequent requests
+- Login requires valid license data and RSA signature along with credentials
 
 ### User Agent
 All requests include:
@@ -43,8 +44,11 @@ Based on observed traffic:
 ## Request/Response Format
 
 ### Requests
-- `Content-Type: multipart/form-data`
-- Request body contains gzip-compressed JSON in form field named `data`
+- `Content-Type: multipart/form-data; boundary="{uuid}"`
+- For authentication: plain text multipart fields
+- For data sync: gzip-compressed JSON in form field
+- Multipart format: Content-Type header before Content-Disposition
+- Field names without quotes in Content-Disposition header
 - Standard HTTP headers for compression negotiation
 
 ### Responses

@@ -5,10 +5,29 @@
 ### Content-Type
 All POST requests use multipart form data:
 ```http
-Content-Type: multipart/form-data; boundary="{random-uuid}"
+Content-Type: multipart/form-data; boundary="{uuid-without-quotes}"
 ```
 
+**Note:** The boundary is a UUID string without quotes in the Content-Type header.
+
 ### Multipart Structure
+
+For authentication and standard API calls:
+```http
+--{boundary}
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: form-data; name={field_name}
+
+{field_value}
+--{boundary}--
+```
+
+**Important:** 
+- Content-Type header comes BEFORE Content-Disposition
+- Field names have no quotes (e.g., `name=email` not `name="email"`)
+- Empty line between headers and content
+
+For compressed data uploads (recipes, etc.):
 ```http
 --{boundary}
 Content-Disposition: form-data; name=data; filename=file; filename*=utf-8''file
@@ -26,14 +45,16 @@ Request bodies are gzip compressed:
 ### Headers
 Required headers for requests:
 ```http
-Authorization: Bearer {token}
-Content-Type: multipart/form-data; boundary="{boundary}"
-Content-Length: {length}
-Accept-Encoding: gzip, deflate
 User-Agent: Paprika Recipe Manager 3/3.3.1 (Microsoft Windows NT 10.0.26100.0)
-Host: www.paprikaapp.com
+Accept-Encoding: gzip, deflate
 Expect: 100-continue
+Content-Type: multipart/form-data; boundary="{uuid}"
+Content-Length: {length}
+Authorization: Bearer {token}  # Only for authenticated requests
+Host: www.paprikaapp.com
 ```
+
+**Note:** For login requests, Authorization header is not included since you're obtaining the token.
 
 ## Response Format
 
@@ -68,12 +89,24 @@ echo '{"uid":"12345"...}' | gzip
 ```
 
 ### 3. Wrap in multipart form:
+
+For authentication (plain text fields):
 ```http
---boundary-uuid
+--{uuid-boundary}
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: form-data; name=data
+
+{json-string}
+--{uuid-boundary}--
+```
+
+For compressed uploads:
+```http
+--{uuid-boundary}
 Content-Disposition: form-data; name=data; filename=file; filename*=utf-8''file
 
 {gzipped-binary-data}
---boundary-uuid--
+--{uuid-boundary}--
 ```
 
 ## Decompression Example
@@ -85,8 +118,10 @@ Content-Disposition: form-data; name=data; filename=file; filename*=utf-8''file
 4. Parse resulting JSON
 
 ## Implementation Notes
-- Boundary UUIDs are random for each request
-- Form field is always named `data`
-- Filename attributes are always `file`
-- Gzip compression is mandatory for request bodies
+- Boundary UUIDs are random for each request (formatted without quotes in Content-Type)
+- For authentication: fields are `email`, `password`, `data`, `signature`
+- For data sync: field is typically `data` with compressed content
+- Content-Type header must come before Content-Disposition in multipart parts
+- Field names in Content-Disposition have no quotes
+- Gzip compression is used for recipe/sync data, not for authentication
 - Response decompression depends on server's Content-Encoding header

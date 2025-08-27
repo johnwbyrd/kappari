@@ -12,21 +12,18 @@ Paprika uses a dual-layer authentication system combining:
 
 The client must have a valid Paprika license with these components:
 
-#### License Data Structure (GClass28)
+#### License Data Structure
 ```json
 {
-    "data": {
-        "key": "LICENSE-KEY-HERE",  // License key
-        "name": "USER NAME HERE",                              // Customer name  
-        "email": "user@example.com",                   // Customer email
-        "product": "paprika3",                            // Product identifier
-        "purchase_date": "2017-08-15T00:00:00.0000000Z",  // Purchase timestamp
-        "expired": false,                                 // Expiration status
-        "refunded": false,                               // Refund status
-        "device": "DEVICE-ID-HERE",                      // Device identifier
-        "version": 1                                     // License version
-    },
-    "signature": "BASE64-RSA-SIGNATURE"                   // Cryptographic signature
+    "key": "LICENSE-KEY-HERE",                           // License key
+    "name": "USER NAME HERE",                            // Customer name  
+    "email": "user@example.com",                         // Customer email
+    "product_id": "com.hindsightlabs.paprika.windows.v3", // Product identifier
+    "purchase_date": "2025-07-14 20:09:31",              // Purchase timestamp
+    "disabled": false,                                   // Expiration/disabled status
+    "refunded": false,                                   // Refund status
+    "install_uid": "device-identifier-here",             // Device identifier
+    "algorithm": 1                                       // Algorithm version
 }
 ```
 
@@ -54,9 +51,9 @@ bool isValid = signer.VerifySignature(Convert.FromBase64String(signature));
 
 #### Validation Checks
 1. **Signature verification** - RSA signature must be valid
-2. **Product match** - Must be for "paprika3" 
-3. **Device match** - Device ID must match current machine
-4. **Status checks** - Not expired or refunded
+2. **Product match** - Must be for "com.hindsightlabs.paprika.windows.v3" or similar product_id
+3. **Device match** - install_uid must match current machine device ID
+4. **Status checks** - Not disabled or refunded
 5. **License format** - Must parse as valid JSON
 
 ### Step 3: Server Authentication
@@ -66,24 +63,39 @@ With valid license, client performs server login:
 #### Login API Call
 ```http
 POST /api/v2/account/login/
-Content-Type: multipart/form-data
+Content-Type: multipart/form-data; boundary="{uuid-boundary}"
+User-Agent: Paprika Recipe Manager 3/3.3.1 (Microsoft Windows NT 10.0.26100.0)
+Accept-Encoding: gzip, deflate
+Expect: 100-continue
 
---boundary
-Content-Disposition: form-data; name="email"
+--{uuid-boundary}
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: form-data; name=email
+
 user@example.com
+--{uuid-boundary}
+Content-Type: text/plain; charset=utf-8  
+Content-Disposition: form-data; name=password
 
---boundary  
-Content-Disposition: form-data; name="password"
 user_password_here
+--{uuid-boundary}
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: form-data; name=data
 
---boundary
-Content-Disposition: form-data; name="data"
-{license_data_json}
+{license_data_json_string}
+--{uuid-boundary}
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: form-data; name=signature
 
---boundary
-Content-Disposition: form-data; name="signature" 
-{base64_signature}
+{base64_signature_string}
+--{uuid-boundary}--
 ```
+
+**Important Details:**
+- Boundary is a UUID without quotes in the Content-Type header
+- Content-Type header comes BEFORE Content-Disposition in each part
+- Field names have no quotes (e.g., `name=email` not `name="email"`)
+- Each field value is preceded by an empty line after headers
 
 #### Server Response
 ```json
@@ -96,23 +108,20 @@ Content-Disposition: form-data; name="signature"
 
 ### Step 4: JWT Token Usage
 
-The returned JWT token is used for all subsequent API calls:
+The server returns a JSON response with the JWT token:
+
+```json
+{
+    "result": {
+        "token": "JWT-TOKEN-HERE"
+    }
+}
+```
+
+This JWT token is then used for all subsequent API calls:
 
 ```http
 Authorization: Bearer JWT-TOKEN-HERE
-```
-
-#### JWT Token Structure
-Based on captured tokens, structure appears to be:
-```json
-{
-    "alg": "HS256",
-    "typ": "JWT"
-}
-{
-    "iat": 1756246406,           // Issued at timestamp
-    "email": "user@example.com" // User email
-}
 ```
 
 ## Implementation Details
@@ -140,12 +149,14 @@ Licenses are stored in local SQLite database in `purchases` table:
 ```sql
 CREATE TABLE purchases (
     id INTEGER PRIMARY KEY,
-    product TEXT,    -- "paprika3"
-    data TEXT,       -- JSON license data
-    signature TEXT,  -- Base64 RSA signature
-    verified INTEGER -- Last verification timestamp
+    product_id TEXT,  -- "com.hindsightlabs.paprika.windows.v3"
+    data TEXT,        -- Encrypted license data (Base64)
+    signature TEXT,   -- Encrypted RSA signature (Base64)
+    verified INTEGER  -- Last verification timestamp
 );
 ```
+
+**Note:** Both `data` and `signature` fields are stored encrypted using AES-256-CBC with PBKDF2 key derivation.
 
 ### Authentication State Management
 
@@ -204,18 +215,27 @@ from Crypto.Signature import pkcs1_15
 from Crypto.Hash import SHA256
 
 def authenticate_paprika(email, password, license_data, signature):
-    # Prepare login request
-    login_data = {
-        'email': email,
-        'password': password, 
-        'data': license_data,
-        'signature': signature
+    # Prepare multipart form data
+    files = {
+        'email': (None, email),
+        'password': (None, password),
+        'data': (None, license_data),  # JSON string
+        'signature': (None, signature)  # Base64 string
     }
     
-    # Send login request
+    # Generate boundary and headers
+    boundary = str(uuid.uuid4())
+    headers = {
+        'User-Agent': 'Paprika Recipe Manager 3/3.3.1 (Microsoft Windows NT 10.0.26100.0)',
+        'Accept-Encoding': 'gzip, deflate',
+        'Expect': '100-continue'
+    }
+    
+    # Send login request with proper multipart formatting
     response = requests.post(
         'https://www.paprikaapp.com/api/v2/account/login/',
-        data=login_data
+        files=files,
+        headers=headers
     )
     
     if response.status_code == 200:

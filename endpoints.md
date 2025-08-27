@@ -16,6 +16,14 @@ POST /api/v2/sync/{entity}/{uuid}/
 
 ## Discovered Endpoints
 
+### Authentication
+```http
+POST /api/v2/account/login/
+```
+- **Purpose**: Authenticate user and obtain JWT token
+- **Request**: Multipart form data with email, password, license data, and signature
+- **Response**: JSON with JWT token in `result.token`
+
 ### Menu Items
 ```http
 POST /api/v2/sync/menuitems/
@@ -74,6 +82,7 @@ Content-Disposition: form-data; name=data; filename=file; filename*=utf-8''file
 ## Endpoint Discovery Status
 
 ### Confirmed Endpoints
+- [x] `/api/v2/account/login/` - User authentication
 - [x] `/api/v2/sync/menuitems/` - Menu item synchronization
 - [x] `/api/v2/sync/recipe/{uuid}/` - Individual recipe sync
 
@@ -82,7 +91,7 @@ Content-Disposition: form-data; name=data; filename=file; filename*=utf-8''file
 - [ ] `/api/v2/sync/menus/` - Menu/meal plan management
 - [ ] `/api/v2/sync/categories/` - Recipe categories
 - [ ] `/api/v2/sync/groceryitems/` - Grocery list items
-- [ ] `/api/v2/auth/login/` - Authentication endpoint
+- [x] `/api/v2/account/login/` - Authentication endpoint (CONFIRMED)
 - [ ] `/api/v2/photos/` - Recipe photo upload/download
 
 ## To Do
