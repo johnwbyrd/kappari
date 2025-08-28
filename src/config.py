@@ -307,6 +307,7 @@ class Config:
 # Module-level singleton
 class _ConfigSingleton:
     """Config singleton holder."""
+
     _instance: Optional[Config] = None
 
     @classmethod
