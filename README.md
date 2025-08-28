@@ -1,43 +1,52 @@
-# Kappari: Paprika API v2 Documentation
+# Kappari: Understanding Paprika 3's API and Database
 
-This project documents our understanding of the Paprika Recipe Manager REST API v2 (used by Paprika 3), and its corresponding sqlite database.  This documentation was created from clean-room reverse engineering of network traffic, the Windows .NET executable, and the sqlite file format.
+Ever wondered how your favorite recipe app syncs your data? This project documents how Paprika Recipe Manager 3 works under the hood - its REST API and local SQLite database.
 
-## Overview
+## What is This?
 
-Paprika Recipe Manager is a popular recipe management application available on Windows, Mac, iOS, and Android. This documentation covers API v2 used by Paprika 3, enabling users to access and manage their own recipe data programmatically.
+Paprika 3 is a popular recipe management app that stores your recipes both locally (in a SQLite database) and in the cloud (via a REST API). This project reverse-engineered both of these, in order to help developers understand how their own recipe and meal data is stored and synchronized.
 
-The Windows executable was decompiled with ILSpy, and the resultant source code searched.  The application's sources were apparently obfuscated with an unknown tool, so analysis had to be done functionally.
+Think of this as documentation for accessing your own data programmatically.
 
-We document API v2 only. There is an older v1 API that is not covered.
+## Why Would I Care?
 
-## API Documentation
+If you're a developer who uses Paprika 3, you might want to export your recipes in custom formats, build integrations with other cooking apps, create backup solutions for your recipe collection, analyze your cooking patterns, or understand how modern apps handle data synchronization.
 
-- [Overview](overview.md) - High-level API summary and conventions
-- [Authentication](authentication.md) - Login flow and JWT token management
-- [Encoding](encoding.md) - Request/response formats and compression
-- [Endpoints](endpoints.md) - Endpoint reference
-- [API](api.md) - REST API
-- [SQLite](sqlite.md) - Local SQLite cache structure and usage
-- [Data Schemas](data-schemas.md) - JSON structure for all entities
-- [API Patterns](api-patterns.md) - Common call sequences
-- [Cryptographic Implementation](crypto.md) - Detailed encryption/decryption algorithms
+This project is **documentation**.  Although it contains working code samples, it's up to you to figure out how to make this documentation work for you in your programming environment.
 
-## Source Code
+## The Technical Bits
 
-The `src/` directory contains Python implementations of the cryptographic algorithms and authentication flows:
+### The API (REST)
+Paprika 3 uses a REST API (version 2) to sync data between devices. The API requires authentication through email/password login that returns a JWT token. Your app license must be cryptographically verified, and some sensitive information like license details is encrypted using AES-256.
 
-- `src/demo_crypto.py` - Demonstration of encryption/decryption process
-- `src/paprika_auth.py` - Complete authentication implementation
-- Other utility scripts for analysis and debugging
+### The Database (SQLite)
+Locally, Paprika stores everything in a SQLite database file. This includes your recipes with title, ingredients, directions, photos, and ratings. Categories help organize your recipes with tags. Grocery lists store your shopping lists with checked and unchecked items. Pantry items track your ingredient inventory, and bookmarks save recipe links from websites you've visited.
 
-## Legal Notice
+### The Crypto Stuff
+Paprika uses some interesting cryptography to keep your data secure. AES-256-CBC encryption protects license data (think of it as a very secure lock), while RSA signatures prove your license is legitimate. PBKDF2 key derivation turns passwords into encryption keys, and Base64 encoding makes binary data text-friendly.
 
-Please see our [license](LICENSE.md) covering this documentation and associated software.
+Don't worry if that sounds complex - the code examples show exactly how it works.
 
-This documentation is created through legal clean-room reverse engineering of network traffic from legitimately purchased software for the purpose of interoperability.  We believe that users have the [legal right](https://www.eff.org/issues/coders/reverse-engineering-faq) to access their own data stored in Paprika's cloud service.
+## Project Structure
 
-Nothing in this documentation permits or enables you to pirate Paprika 3.  Paprika 3 requires a valid license in order to use their online API.  You **should** buy a copy of Paprika 3 as it is a great recipe database with a great design.
+The documentation files (`authentication.md`, `crypto.md`, `sqlite.md`, etc.) contain detailed technical information, while `src/` has working Python code that implements the protocols. The `.env.example` file serves as a configuration template.
+
+The Python code is designed to be readable by beginners. It includes plenty of comments and focuses on clarity over cleverness.
+
+## Getting Started
+
+Start by reading the documentation, particularly `authentication.md` for understanding how login works, then `crypto.md` to see the encryption details. Try the code by copying `.env.example` to `.env` and filling in your Paprika credentials. Run a test with `python3 src/auth.py` to test authentication, then explore `src/roundtrip.py` to see encryption in action.
+
+## Legal Reverse Engineering for Interoperability
+
+This project helps you access recipes and data from your own legitimately purchased copy of Paprika 3. It doesn't help you pirate the software, and you should definitely buy Paprika 3 since it's genuinely great software and the developers deserve your support. You need a valid license to use their API anyway.
+
+We created this through [legal reverse engineering for interoperability](https://www.eff.org/issues/coders/reverse-engineering-faq), analyzing network traffic and database files from our own purchased software.
+
+We captured HTTP requests using Fiddler, decompiled the Windows .NET executable with ILSpy and de4dot, analyzed the SQLite database structure, implemented the cryptographic algorithms from scratch, and tested everything with round-trip verification.
+
+The result is clean, documented code that shows exactly how a modern recipe app works behind the scenes.
 
 ## Contributing
 
-This documentation is based on observed API behavior. If you discover additional endpoints or corrections, please contribute your findings.
+Found something we missed? Spotted an error? Contributions welcome! This documentation improves as more developers explore and verify the findings.
