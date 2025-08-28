@@ -15,6 +15,7 @@ from kappari.auth import Auth
 from kappari.network_client import get_client
 
 
+@pytest.mark.requires_database
 def test_network_client_singleton():
     """Test that get_client returns the same instance."""
     client1 = get_client()
@@ -22,6 +23,7 @@ def test_network_client_singleton():
     assert client1 is client2, "Network client should be a singleton"
 
 
+@pytest.mark.requires_database
 def test_network_client_configuration():
     """Test that network client has expected configuration."""
     client = get_client()
@@ -38,6 +40,7 @@ def test_network_client_configuration():
     assert isinstance(client.config.dry_run, bool)
 
 
+@pytest.mark.requires_database
 def test_request_methods_exist():
     """Test that all expected request methods exist."""
     client = get_client()

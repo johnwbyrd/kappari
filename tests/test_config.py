@@ -7,10 +7,13 @@ variable loading, path resolution, and credential validation.
 
 from pathlib import Path
 
+import pytest
+
 from kappari import log
 from kappari.config import get_config, reload_config
 
 
+@pytest.mark.requires_database
 def test_configuration_loading():
     """Test that configuration loads successfully."""
     cfg = get_config()
@@ -31,6 +34,7 @@ def test_configuration_loading():
         log.info("Database not found at: %s", cfg.db_file)
 
 
+@pytest.mark.requires_database
 def test_config_singleton():
     """Test that config singleton works properly."""
     config1 = get_config()
@@ -38,6 +42,7 @@ def test_config_singleton():
     assert config1 is config2, "Config should be a singleton"
 
 
+@pytest.mark.requires_database
 def test_config_reload():
     """Test that config can be reloaded."""
     config1 = get_config()
@@ -46,6 +51,7 @@ def test_config_reload():
     assert config1 is not config2, "Reload should create new instance"
 
 
+@pytest.mark.requires_database
 def test_config_has_required_attributes():
     """Test that config object has expected attributes."""
     config = get_config()
@@ -63,6 +69,7 @@ def test_config_has_required_attributes():
     assert callable(config.validate_credentials)
 
 
+@pytest.mark.requires_database
 def test_path_resolution_attributes():
     """Test that all path attributes are properly set."""
     config = get_config()
@@ -83,6 +90,7 @@ def test_path_resolution_attributes():
     assert isinstance(config.log_dir, Path)
 
 
+@pytest.mark.requires_database
 def test_boolean_parsing():
     """Test that boolean configuration values are parsed correctly."""
     config = get_config()

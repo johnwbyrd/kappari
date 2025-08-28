@@ -64,6 +64,7 @@ def test_full_authentication_flow(
             assert isinstance(response_data, dict)
 
 
+@pytest.mark.requires_database
 def test_auth_class_creation():
     """Test that Auth class can be instantiated."""
     auth = Auth()
@@ -72,6 +73,7 @@ def test_auth_class_creation():
     assert hasattr(auth, "client")
 
 
+@pytest.mark.requires_database
 def test_auth_class_methods():
     """Test that Auth class has expected methods."""
     auth = Auth()
