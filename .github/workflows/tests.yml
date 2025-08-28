@@ -23,10 +23,24 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[dev]"
         
-    - name: Run tests
-      run: pytest -v -m "not requires_database and not requires_credentials and not requires_network"
+    - name: Run tests with markdown report
+      run: |
+        pytest -v -m "not requires_database and not requires_credentials and not requires_network" \
+          --md-report --md-report-flavor gfm --md-report-output test_results.md
       # Skip tests that require external dependencies (database files, credentials, network access)
-      # Only run tests that can execute with the packages and code available in CI environment
+      # Generate markdown report for GitHub job summary display
+      
+    - name: Add test results to job summary
+      if: always()
+      run: |
+        if [ -f "test_results.md" ]; then
+          echo "## 📊 Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat test_results.md >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ❌ Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "No test results file generated" >> $GITHUB_STEP_SUMMARY
+        fi
       
     - name: Run ruff check
       run: ruff check .

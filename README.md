@@ -44,6 +44,12 @@ This project provides **documentation and working code**. You can use it to unde
    ruff format .     # Format code
    ```
 
+5. **Test reports:**
+   ```bash
+   # Generate markdown test report
+   pytest --md-report --md-report-flavor gfm --md-report-output test_results.md
+   ```
+
 ## Project Structure
 
 The documentation files (`authentication.md`, `crypto.md`, `sqlite.md`, etc.) contain detailed technical information, while `kappari/` has the working Python library that implements the protocols. The `.env.example` file serves as a configuration template.
