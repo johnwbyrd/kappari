@@ -9,15 +9,15 @@ import json
 import sys
 import uuid
 from typing import Any, Dict, Optional
-import io
 
-from config import get_config
 import log
+from config import get_config
 
 # Try to import requests and requests-toolbelt, but handle if not available
 try:
     import requests
     from requests_toolbelt import MultipartEncoder
+
     REQUESTS_AVAILABLE = True
 except ImportError:
     REQUESTS_AVAILABLE = False
@@ -29,7 +29,7 @@ class NetworkClient:
 
     def __init__(self):
         self.config = get_config()
-        
+
     def _log_prepared_request(self, prepared):
         """Log the prepared request from requests library."""
         log.debug("=== PREPARED REQUEST ===")
@@ -40,21 +40,22 @@ class NetworkClient:
             body = prepared.body
             if isinstance(body, bytes):
                 try:
-                    body = body.decode('utf-8')
+                    body = body.decode("utf-8")
                 except:
                     body = f"<{len(prepared.body)} bytes>"
             log.debug("Body: %s", body)
         log.debug("=== END PREPARED REQUEST ===")
 
-    def _log_request(self, method: str, url: str, headers: dict,
-                     data: Any = None) -> None:
+    def _log_request(
+        self, method: str, url: str, headers: dict, data: Any = None
+    ) -> None:
         """Log request details."""
         log.debug("--- %s Request ---", method.upper())
         log.debug("URL: %s", url)
         log.debug("Headers:")
         for key, value in headers.items():
             # Hide sensitive auth tokens in logs
-            if key.lower() == 'authorization' and len(value) > 20:
+            if key.lower() == "authorization" and len(value) > 20:
                 log.debug("  %s: %s...", key, value[:20])
             else:
                 log.debug("  %s: %s", key, value)
@@ -66,19 +67,20 @@ class NetworkClient:
                     if isinstance(value, tuple) and len(value) == 2:
                         # Multipart form data format (filename, content)
                         filename, content = value
-                        if key in ['password', 'signature']:
-                            log.debug("  %s: [HIDDEN - %d chars]",
-                                     key, len(str(content)))
+                        if key in ["password", "signature"]:
+                            log.debug(
+                                "  %s: [HIDDEN - %d chars]",
+                                key,
+                                len(str(content)),
+                            )
                         else:
                             log.debug("  %s: %s", key, content)
+                    elif key in ["password", "signature"]:
+                        log.debug("  %s: [HIDDEN]", key)
                     else:
-                        if key in ['password', 'signature']:
-                            log.debug("  %s: [HIDDEN]", key)
-                        else:
-                            log.debug("  %s: %s", key, value)
+                        log.debug("  %s: %s", key, value)
             else:
                 log.debug("Data: %s", data)
-        
 
     def _log_response(self, response) -> None:
         """Log response details."""
@@ -95,15 +97,21 @@ class NetworkClient:
         try:
             response_data = response.json()
             if self.config.pretty_json:
-                log.debug("JSON Body:\n%s", json.dumps(response_data, indent=2))
+                log.debug(
+                    "JSON Body:\n%s", json.dumps(response_data, indent=2)
+                )
             else:
                 log.debug("JSON Body: %s", response_data)
         except (ValueError, json.JSONDecodeError):
             log.debug("Text Body: %s", response.text)
 
-    def post(self, endpoint: str, data: Dict[str, Any] = None,
-             files: Dict[str, Any] = None,
-             headers: Dict[str, str] = None) -> Optional[requests.Response]:
+    def post(
+        self,
+        endpoint: str,
+        data: Dict[str, Any] = None,
+        files: Dict[str, Any] = None,
+        headers: Dict[str, str] = None,
+    ) -> Optional[requests.Response]:
         """
         Make a POST request.
 
@@ -123,22 +131,22 @@ class NetworkClient:
             headers = {}
 
         # Add required headers to match captured request format
-        if 'User-Agent' not in headers:
-            headers['User-Agent'] = self.config.user_agent
-        if 'Accept-Encoding' not in headers:
-            headers['Accept-Encoding'] = 'gzip, deflate'
-        if 'Expect' not in headers:
-            headers['Expect'] = '100-continue'
+        if "User-Agent" not in headers:
+            headers["User-Agent"] = self.config.user_agent
+        if "Accept-Encoding" not in headers:
+            headers["Accept-Encoding"] = "gzip, deflate"
+        if "Expect" not in headers:
+            headers["Expect"] = "100-continue"
 
         # For debugging, log the request
         if self.config.debug_api_requests:
-            self._log_request('POST', url, headers, files or data)
+            self._log_request("POST", url, headers, files or data)
 
         # Use custom multipart construction for files to match exact format
         if files:
             # Generate GUID-style boundary (matching captured format)
             boundary = str(uuid.uuid4())
-            
+
             # Manually construct multipart body to match captured request exactly
             body_parts = []
             for field_name, field_value in files.items():
@@ -147,43 +155,41 @@ class NetworkClient:
                     value = str(content)
                 else:
                     value = str(field_value)
-                
+
                 # Match captured format exactly: Content-Type before Content-Disposition, no quotes around field name
                 part = f"--{boundary}\r\n"
-                part += f"Content-Type: text/plain; charset=utf-8\r\n"
-                part += f"Content-Disposition: form-data; name={field_name}\r\n"
-                part += f"\r\n"
+                part += "Content-Type: text/plain; charset=utf-8\r\n"
+                part += (
+                    f"Content-Disposition: form-data; name={field_name}\r\n"
+                )
+                part += "\r\n"
                 part += f"{value}\r\n"
                 body_parts.append(part)
-            
+
             # Add final boundary
             body_parts.append(f"--{boundary}--\r\n")
-            
+
             # Join all parts
-            body = ''.join(body_parts).encode('utf-8')
-            
+            body = "".join(body_parts).encode("utf-8")
+
             # Set headers
-            headers['Content-Type'] = f'multipart/form-data; boundary="{boundary}"'
-            headers['Content-Length'] = str(len(body))
-            
+            headers["Content-Type"] = (
+                f'multipart/form-data; boundary="{boundary}"'
+            )
+            headers["Content-Length"] = str(len(body))
+
             # Prepare request with custom body
             req = requests.Request(
-                method='POST',
-                url=url,
-                data=body,
-                headers=headers
+                method="POST", url=url, data=body, headers=headers
             )
         else:
             # Standard request for non-multipart data
             req = requests.Request(
-                method='POST',
-                url=url,
-                data=data,
-                headers=headers
+                method="POST", url=url, data=data, headers=headers
             )
-        
+
         prepared = req.prepare()
-        
+
         # Log the prepared request if debugging
         if self.config.debug_api_requests:
             self._log_prepared_request(prepared)
@@ -206,7 +212,7 @@ class NetworkClient:
                 prepared,
                 timeout=self.config.api_timeout,
                 proxies=self.config.proxies if self.config.proxies else None,
-                verify=self.config.verify_ssl
+                verify=self.config.verify_ssl,
             )
 
             if self.config.debug_api_requests:
@@ -218,8 +224,12 @@ class NetworkClient:
             log.error("POST request failed: %s", e)
             return None
 
-    def get(self, endpoint: str, params: Dict[str, Any] = None,
-            headers: Dict[str, str] = None) -> Optional[requests.Response]:
+    def get(
+        self,
+        endpoint: str,
+        params: Dict[str, Any] = None,
+        headers: Dict[str, str] = None,
+    ) -> Optional[requests.Response]:
         """
         Make a GET request.
 
@@ -238,12 +248,12 @@ class NetworkClient:
             headers = {}
 
         # Add default User-Agent if not present
-        if 'User-Agent' not in headers:
-            headers['User-Agent'] = self.config.user_agent
+        if "User-Agent" not in headers:
+            headers["User-Agent"] = self.config.user_agent
 
         # For debugging, log the request
         if self.config.debug_api_requests:
-            self._log_request('GET', url, headers, params)
+            self._log_request("GET", url, headers, params)
 
         # Check if we're in dry run mode
         if self.config.dry_run:
@@ -265,7 +275,7 @@ class NetworkClient:
                 headers=headers,
                 timeout=self.config.api_timeout,
                 proxies=self.config.proxies if self.config.proxies else None,
-                verify=self.config.verify_ssl
+                verify=self.config.verify_ssl,
             )
 
             if self.config.debug_api_requests:
@@ -277,8 +287,9 @@ class NetworkClient:
             log.error("GET request failed: %s", e)
             return None
 
-    def authenticate(self, email: str, password: str, license_data: str,
-                     signature: str) -> Optional[str]:
+    def authenticate(
+        self, email: str, password: str, license_data: str, signature: str
+    ) -> Optional[str]:
         """
         Authenticate with Paprika server and get JWT token.
 
@@ -293,13 +304,13 @@ class NetworkClient:
         """
         # Prepare multipart form data
         files = {
-            'email': (None, email),
-            'password': (None, password),
-            'data': (None, license_data),
-            'signature': (None, signature)
+            "email": (None, email),
+            "password": (None, password),
+            "data": (None, license_data),
+            "signature": (None, signature),
         }
 
-        response = self.post('account/login/', files=files)
+        response = self.post("account/login/", files=files)
 
         if response is None:
             # Dry run or request failed
@@ -310,18 +321,19 @@ class NetworkClient:
         if response.status_code == 200:
             try:
                 result = response.json()
-                if 'result' in result and 'token' in result['result']:
-                    jwt_token = result['result']['token']
+                if "result" in result and "token" in result["result"]:
+                    jwt_token = result["result"]["token"]
                     log.info("Authentication successful")
                     return jwt_token
-                else:
-                    log.error("Unexpected response format: %s", result)
-                    return None
+                log.error("Unexpected response format: %s", result)
+                return None
             except json.JSONDecodeError:
                 log.error("Non-JSON response: %s", response.text)
                 return None
         else:
-            log.error("Authentication failed with status %d", response.status_code)
+            log.error(
+                "Authentication failed with status %d", response.status_code
+            )
             try:
                 error_data = response.json()
                 log.error("Error details: %s", error_data)
@@ -329,9 +341,9 @@ class NetworkClient:
                 log.error("Error response: %s", response.text)
             return None
 
-    def make_authenticated_request(self, endpoint: str, jwt_token: str,
-                                   method: str = 'GET',
-                                   **kwargs) -> Optional[requests.Response]:
+    def make_authenticated_request(
+        self, endpoint: str, jwt_token: str, method: str = "GET", **kwargs
+    ) -> Optional[requests.Response]:
         """
         Make an authenticated request to Paprika API.
 
@@ -344,16 +356,15 @@ class NetworkClient:
         Returns:
             Response object or None if error
         """
-        headers = kwargs.get('headers', {})
-        headers['Authorization'] = f'Bearer {jwt_token}'
-        kwargs['headers'] = headers
+        headers = kwargs.get("headers", {})
+        headers["Authorization"] = f"Bearer {jwt_token}"
+        kwargs["headers"] = headers
 
-        if method.upper() == 'GET':
+        if method.upper() == "GET":
             return self.get(endpoint, **kwargs)
-        elif method.upper() == 'POST':
+        if method.upper() == "POST":
             return self.post(endpoint, **kwargs)
-        else:
-            raise ValueError(f"Unsupported HTTP method: {method}")
+        raise ValueError(f"Unsupported HTTP method: {method}")
 
 
 # Create a singleton instance
@@ -365,25 +376,21 @@ def get_client() -> NetworkClient:
     return client
 
 
-
-
 if __name__ == "__main__":
     # Test the network client
     try:
         net_client = get_client()
-        
+
         log.info("Network client initialized")
         log.info("Base URL: %s", net_client.config.api_base_url)
         log.info("Dry run mode: %s", net_client.config.dry_run)
-        log.info("Debug API requests: %s", net_client.config.debug_api_requests)
+        log.info(
+            "Debug API requests: %s", net_client.config.debug_api_requests
+        )
 
-        # Test a simple GET request
-        log.info("Testing GET request...")
-        response = net_client.get('sync/recipes/')
-        if response:
-            log.info("Response status: %d", response.status_code)
-        else:
-            log.info("No response (dry run or error)")
+        # Test client functionality without making real requests
+        log.info("Network client test complete - no requests made")
+        log.info("Use auth.py to test actual authentication flow")
 
     except Exception as e:
         log.error("Error: %s", e)

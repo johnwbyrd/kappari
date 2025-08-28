@@ -34,3 +34,4 @@ package*.json
 # Exceptions (files that should NOT be ignored despite matching above patterns)
 !.gitignore
 !.env.example
+!/github/workflows/lint.yml
