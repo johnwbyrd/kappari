@@ -70,4 +70,44 @@ Julian date values are converted to ISO timestamp strings, and internal sync_has
 
 ## Database Tables
 
-[Per table documentation goes here]
+### recipes
+
+#### Purpose
+
+Core recipe storage with full recipe data, metadata, sync status, and photo references.
+
+#### Schema
+
+| Column | Type | Description | Example Values |
+| --- | --- | --- | --- |
+| id | INTEGER PRIMARY KEY | Internal database auto-increment ID | 1, 2, 3... |
+| uid | TEXT | Unique UUID identifier for recipe used for sync and photo directory organization | "E5BCA7D4-7FAB-4B1B-AC14-7D5C843B56FA" |
+| status | TEXT | Synchronization status indicator | "unmodified" |
+| name | TEXT | Recipe title/name | "Best Vegetarian Chili in the World" |
+| ingredients | TEXT | Complete ingredient list with quantities, newline-separated | "1 tablespoon olive oil\n½ medium onion, chopped\n2 tablespoons dried oregano..." |
+| directions | TEXT | Step-by-step cooking instructions with paragraph formatting | "Gather all ingredients.\n\nHeat olive oil in a large pot over medium heat..." |
+| description | TEXT | Recipe description, summary, or user notes (combines description and notes functionality) | NULL (most recipes) |
+| nutritional_info | TEXT | Nutritional information data | NULL (observed) |
+| servings | TEXT | Number of servings recipe makes as free text | "4 servings", "One serving", "8 1-cup servings" |
+| difficulty | TEXT | Recipe difficulty level | NULL (observed) |
+| prep_time | TEXT | Preparation time | NULL, "35 min" |
+| cook_time | TEXT | Cooking/baking time | NULL |
+| total_time | TEXT | Total time from start to finish | "35", NULL |
+| rating | INTEGER | User's star rating on 0-5 scale, 0 means unrated | 0, 3, 4 |
+| in_trash | BOOLEAN | Whether recipe is soft deleted | 0 (FALSE) observed |
+| is_pinned | BOOLEAN | Whether recipe is pinned for quick access | 0 (FALSE) observed |
+| is_synced | BOOLEAN | Whether recipe is synchronized with server | 0/1 |
+| on_favorites | BOOLEAN | Whether recipe is marked as favorite | 0/1 |
+| source | TEXT | Recipe source attribution | NULL (most recipes) |
+| source_url | TEXT | Original URL if recipe was imported from web | NULL (observed) |
+| image_url | TEXT | URL of recipe image from external source | NULL (observed) |
+| photo | TEXT | Primary photo filename stored at Photos/{recipe_uid}/{filename} | "BC6BFB89-1301-445C-AB7F-61FF0410E122.jpg", NULL |
+| photo_hash | TEXT | SHA256 hash of primary photo file contents for integrity verification | "78B7C5E6901B115E60B9D8C21373AE226C5CCB7F5D00537974D058869EB7E227" |
+| photo_large | TEXT | Large version photo filename, different from primary photo, stored in same directory | "25E502DA-91D2-45EA-8852-10740D004EE6.jpg", NULL |
+| photo_is_downloaded | BOOLEAN | Whether primary photo has been downloaded locally | 0/1 |
+| photo_is_uploaded | BOOLEAN | Whether primary photo has been uploaded to server | 0/1 |
+| scale | TEXT | Recipe scaling factor for adjusting serving sizes | NULL (observed) |
+| selected_ingredients | TEXT | UI state tracking which ingredients are currently selected/highlighted | NULL (observed) |
+| selected_direction | TEXT | UI state tracking which direction step is currently selected | NULL (observed) |
+| sync_hash | TEXT | SHA256 hash of random GUID for change detection in sync system | "a52e2b5870676cb78d22f608f0dfba867e3417de52f42bf63dfaab7ec8568383" |
+| created | DATETIME | Recipe creation timestamp | Date strings |
