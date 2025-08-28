@@ -30,7 +30,7 @@ The client retrieves encrypted license data from the local SQLite database (`pur
 The `install_uid` field in the license binds it to a specific device. On Windows, Paprika obtains this ID from:
 
 1. `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid` (primary)
-2. `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Device` (fallback)
+2. `HKEY_CURRENT_USER\SOFTWARE\Hindsight Labs LLC\Paprika Recipe Manager 3\InstallUid` (fallback)
 3. If neither exists, generates and stores a new GUID
 
 Other platforms likely use:
