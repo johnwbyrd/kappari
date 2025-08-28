@@ -243,11 +243,11 @@ def perform_round_trip_test():
 
     # Step 1: Read encrypted data from database
     log.info("\nStep 1: Reading encrypted data from database...")
-    log.info("Database path: %s", config.db_path)
+    log.info("Database file: %s", config.db_file)
 
     try:
         encrypted_data_original, encrypted_signature_original = (
-            read_encrypted_data_from_db(config.db_path)
+            read_encrypted_data_from_db(config.db_file)
         )
         log.info("Successfully read encrypted data")
         log.info("  Data length: %d characters", len(encrypted_data_original))
@@ -391,19 +391,19 @@ def main():
     config = get_config()
 
     # Check if database exists
-    if not Path(config.db_path).exists():
+    if not Path(config.db_file).exists():
         log.info("=" * 70)
         log.info("No Paprika database found")
         log.info("=" * 70)
         log.info("\nThis script requires a Paprika database to verify the")
         log.info("encryption implementation against real data.")
-        log.info("\nDatabase path checked: %s", config.db_path)
+        log.info("\nDatabase file checked: %s", config.db_file)
         log.info("\nTo use this script:")
         log.info(
             "1. Ensure Paprika 3 is installed and has been run at least once"
         )
         log.info(
-            "2. Set KAPPARI_DB_PATH in your .env file to point to "
+            "2. Set KAPPARI_DB_FILE in your .env file to point to "
             "Paprika.sqlite"
         )
         log.info("3. Or copy a Paprika.sqlite file to the expected location")

@@ -5,11 +5,14 @@ Loads configuration from environment variables with sensible defaults
 """
 
 import os
+import sqlite3
 import sys
 from pathlib import Path
 from typing import Optional
 
 from dotenv import load_dotenv
+
+import log
 
 # Load .env file using default approach
 load_dotenv()
@@ -20,6 +23,7 @@ class Config:
 
     def __init__(self):
         self._setup_credentials()
+        self._setup_root_directory()
         self._setup_database()
         self._setup_api_config()
         self._setup_license_auth()
@@ -35,20 +39,97 @@ class Config:
         self.email = os.getenv("KAPPARI_EMAIL")
         self.password = os.getenv("KAPPARI_PASSWORD")
 
+        # If no email in env, we'll try to get it from database later
+        self._try_load_email_from_db = not self.email
+
+    def _get_platform_default_root(self) -> Optional[Path]:
+        """Get platform-specific default Paprika installation directory."""
+        if sys.platform == "win32":
+            localappdata = os.environ.get("LOCALAPPDATA")
+            if localappdata:
+                return Path(localappdata) / "Paprika Recipe Manager 3"
+        elif sys.platform == "darwin":
+            return (
+                Path.home() / "Library" / "Application Support"
+                / "Paprika Recipe Manager 3"
+            )
+        # No default for Linux - user must specify
+        return None
+
+    def _setup_root_directory(self):
+        """Setup root directory for Paprika installation."""
+
+        root_env = os.getenv("KAPPARI_ROOT_DIR")
+
+        if root_env:
+            self.root_dir = Path(root_env).resolve()
+            log.info("Using specified root directory: %s", self.root_dir)
+        else:
+            platform_default = self._get_platform_default_root()
+            if platform_default and platform_default.exists():
+                self.root_dir = platform_default
+                log.info(
+                    "Auto-detected platform default: %s", self.root_dir
+                )
+            else:
+                self.root_dir = None
+                log.info("No root directory set, using individual path config")
+
+    def _resolve_path(
+        self,
+        env_key: str,
+        default_relative_path: str,
+        fallback_absolute: Optional[str] = None
+    ) -> Optional[str]:
+        """
+        Resolve path using root directory + override logic.
+
+        Args:
+            env_key: Environment variable name to check
+            default_relative_path: Default path relative to root_dir
+            fallback_absolute: Fallback when no root_dir available
+
+        Returns:
+            Resolved path as string, or None if cannot resolve
+        """
+        specific_path = os.getenv(env_key)
+
+        if specific_path:
+            if Path(specific_path).is_absolute():
+                return specific_path  # Absolute override
+            if self.root_dir:
+                return str(self.root_dir / specific_path)  # Relative to root
+            # No root dir but user provided relative path - problematic
+            raise ValueError(
+                f"{env_key} is relative but KAPPARI_ROOT_DIR not set"
+            )
+        if self.root_dir:
+            return str(self.root_dir / default_relative_path)  # Default
+        return fallback_absolute  # Fallback to old behavior
+
     def _setup_database(self):
         """Setup database configuration."""
-        self.db_path = os.getenv("KAPPARI_DB_PATH")
-        self.db_backup_path = os.getenv("KAPPARI_DB_BACKUP_PATH")
+        self.db_file = self._resolve_path(
+            "KAPPARI_DB_FILE",
+            "Database/Paprika.sqlite",
+            self._find_default_db_path()  # Fallback to old logic
+        )
+        self.db_backup_dir = self._resolve_path(
+            "KAPPARI_DB_BACKUP_DIR",
+            "Database/Backups",
+            None
+        )
 
         # Validate required fields
-        if not self.db_path:
-            # Try to find default paths
-            self.db_path = self._find_default_db_path()
-            if not self.db_path:
-                raise ValueError(
-                    "KAPPARI_DB_PATH is required. "
-                    "Please set it in your .env file"
-                )
+        if not self.db_file:
+            raise ValueError(
+                "Database file could not be determined. "
+                "Set KAPPARI_ROOT_DIR or KAPPARI_DB_FILE in your .env file"
+            )
+
+        # Try to load email from database if not in env
+        if self._try_load_email_from_db and Path(self.db_file).exists():
+            self._load_email_from_database()
 
     def _setup_api_config(self):
         """Setup API configuration."""
@@ -68,8 +149,6 @@ class Config:
 
         self.device_id = os.getenv("KAPPARI_DEVICE_ID")
         self.jwt_token = os.getenv("KAPPARI_JWT_TOKEN")
-        self.license_key = os.getenv("KAPPARI_LICENSE_KEY")
-        self.license_signature = os.getenv("KAPPARI_LICENSE_SIGNATURE")
 
         # Encryption keys
         self.purchase_data_key = os.getenv(
@@ -92,28 +171,28 @@ class Config:
 
     def _setup_paths(self):
         """Setup export/import paths."""
-
-        self.export_path = Path(os.getenv("KAPPARI_EXPORT_PATH", "./exports"))
-        self.import_path = Path(os.getenv("KAPPARI_IMPORT_PATH", "./imports"))
+        export_dir_str = self._resolve_path(
+            "KAPPARI_EXPORT_DIR", "exports", "./exports"
+        )
+        import_dir_str = self._resolve_path(
+            "KAPPARI_IMPORT_DIR", "imports", "./imports"
+        )
+        self.export_dir = Path(export_dir_str)
+        self.import_dir = Path(import_dir_str)
         self.export_format = os.getenv("KAPPARI_EXPORT_FORMAT", "json")
 
         # Create directories if they don't exist
-        self.export_path.mkdir(parents=True, exist_ok=True)
-        self.import_path.mkdir(parents=True, exist_ok=True)
-
-        # Additional paths
-        self.capture_saz_path = Path(
-            os.getenv("KAPPARI_CAPTURE_SAZ_PATH", "./captures")
-        )
-        self.capture_raw_path = Path(
-            os.getenv("KAPPARI_CAPTURE_RAW_PATH", "./captures/raw")
-        )
+        self.export_dir.mkdir(parents=True, exist_ok=True)
+        self.import_dir.mkdir(parents=True, exist_ok=True)
 
     def _setup_logging(self):
         """Setup logging configuration."""
 
         self.log_level = os.getenv("KAPPARI_LOG_LEVEL", "INFO")
-        self.log_path = Path(os.getenv("KAPPARI_LOG_PATH", "./logs"))
+        log_dir_str = self._resolve_path(
+            "KAPPARI_LOG_DIR", "Logs", "./logs"
+        )
+        self.log_dir = Path(log_dir_str)
         self.debug_api_requests = self._parse_bool(
             os.getenv("KAPPARI_DEBUG_API_REQUESTS", "false")
         )
@@ -125,7 +204,7 @@ class Config:
         )
 
         # Create log directory if it doesn't exist
-        self.log_path.mkdir(parents=True, exist_ok=True)
+        self.log_dir.mkdir(parents=True, exist_ok=True)
 
     def _setup_network(self):
         """Setup network configuration."""
@@ -150,26 +229,33 @@ class Config:
         self.cache_enabled = self._parse_bool(
             os.getenv("KAPPARI_CACHE_ENABLED", "true")
         )
-        self.cache_path = Path(os.getenv("KAPPARI_CACHE_PATH", "./cache"))
+        cache_dir_str = self._resolve_path(
+            "KAPPARI_CACHE_DIR", "cache", "./cache"
+        )
+        self.cache_dir = Path(cache_dir_str)
         self.cache_ttl = int(os.getenv("KAPPARI_CACHE_TTL", "3600"))
 
         # Create cache directory if enabled
         if self.cache_enabled:
-            self.cache_path.mkdir(parents=True, exist_ok=True)
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Recipe storage
-        self.recipes_local_path = Path(
-            os.getenv("KAPPARI_RECIPES_LOCAL_PATH", "./recipes")
+        recipes_dir_str = self._resolve_path(
+            "KAPPARI_RECIPES_LOCAL_DIR", "recipes", "./recipes"
         )
+        self.recipes_local_dir = Path(recipes_dir_str)
         self.store_photos_locally = self._parse_bool(
             os.getenv("KAPPARI_STORE_PHOTOS_LOCALLY", "true")
         )
-        self.photos_path = Path(os.getenv("KAPPARI_PHOTOS_PATH", "./photos"))
+        photos_dir_str = self._resolve_path(
+            "KAPPARI_PHOTOS_DIR", "Photos", "./photos"
+        )
+        self.photos_dir = Path(photos_dir_str)
 
         # Create recipe and photo directories
-        self.recipes_local_path.mkdir(parents=True, exist_ok=True)
+        self.recipes_local_dir.mkdir(parents=True, exist_ok=True)
         if self.store_photos_locally:
-            self.photos_path.mkdir(parents=True, exist_ok=True)
+            self.photos_dir.mkdir(parents=True, exist_ok=True)
 
     def _setup_development(self):
         """Setup development and testing configuration."""
@@ -178,19 +264,37 @@ class Config:
         self.use_mock_data = self._parse_bool(
             os.getenv("KAPPARI_USE_MOCK_DATA", "false")
         )
-        self.mock_data_path = Path(
-            os.getenv("KAPPARI_MOCK_DATA_PATH", "./test/mock_data")
+        self.mock_data_dir = Path(
+            os.getenv("KAPPARI_MOCK_DATA_DIR", "./test/mock_data")
         )
         self.persist_tokens = self._parse_bool(
             os.getenv("KAPPARI_PERSIST_TOKENS", "false")
         )
 
         if self.use_mock_data:
-            self.mock_data_path.mkdir(parents=True, exist_ok=True)
+            self.mock_data_dir.mkdir(parents=True, exist_ok=True)
 
     def _parse_bool(self, value: str) -> bool:
         """Parse boolean from string"""
         return value.lower() in ("true", "yes", "1", "on")
+
+    def _load_email_from_database(self):
+        """Try to load email from Paprika database settings."""
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT value FROM settings WHERE name = 'SyncEmail'"
+            )
+            row = cursor.fetchone()
+            if row and row[0]:
+                # Remove quotes if present
+                email = row[0].strip('"')
+                self.email = email
+                log.info("Loaded email from database: %s", email)
+            conn.close()
+        except Exception as e:
+            log.debug("Could not load email from database: %s", e)
 
     def _find_default_db_path(self) -> Optional[str]:
         """Try to find the default Paprika database path based on OS"""
@@ -295,7 +399,7 @@ class Config:
         return (
             f"Config(\n"
             f"  email={self.email if self.email else 'NOT SET'},\n"
-            f"  db_path={self.db_path},\n"
+            f"  db_file={self.db_file},\n"
             f"  api_base_url={self.api_base_url},\n"
             f"  sync_enabled={self.sync_enabled},\n"
             f"  cache_enabled={self.cache_enabled},\n"
@@ -337,8 +441,6 @@ def reload_config() -> Config:
 
 if __name__ == "__main__":
     # Test configuration loading
-    import log
-
     try:
         cfg = get_config()
         log.info("Configuration loaded successfully")
@@ -351,10 +453,10 @@ if __name__ == "__main__":
                 "Missing credentials (KAPPARI_EMAIL and/or KAPPARI_PASSWORD)"
             )
 
-        if Path(cfg.db_path).exists():
-            log.info("Database found at: %s", cfg.db_path)
+        if Path(cfg.db_file).exists():
+            log.info("Database found at: %s", cfg.db_file)
         else:
-            log.error("Database not found at: %s", cfg.db_path)
+            log.error("Database not found at: %s", cfg.db_file)
             sys.exit(1)
 
     except Exception as e:

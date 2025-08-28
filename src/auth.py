@@ -29,12 +29,12 @@ class Auth:
         """Decrypt license data from SQLite database"""
         log.debug("Starting license data decryption")
 
-        if not Path(self.config.db_path).exists():
-            log.error("Database not found: %s", self.config.db_path)
-            raise Exception(f"Database not found: {self.config.db_path}")
+        if not Path(self.config.db_file).exists():
+            log.error("Database not found: %s", self.config.db_file)
+            raise Exception(f"Database not found: {self.config.db_file}")
 
-        log.debug("Connecting to database: %s", self.config.db_path)
-        conn = sqlite3.connect(self.config.db_path)
+        log.debug("Connecting to database: %s", self.config.db_file)
+        conn = sqlite3.connect(self.config.db_file)
         cursor = conn.cursor()
 
         cursor.execute("SELECT product_id, data, signature FROM purchases")

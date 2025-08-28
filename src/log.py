@@ -26,7 +26,7 @@ def _setup_logging() -> None:
 
     # Get configuration from environment
     log_level = os.getenv("KAPPARI_LOG_LEVEL", "INFO")
-    log_path = Path(os.getenv("KAPPARI_LOG_PATH", "./logs"))
+    log_path = Path(os.getenv("KAPPARI_LOG_DIR", "./logs"))
 
     # Create log directory
     log_path.mkdir(parents=True, exist_ok=True)
