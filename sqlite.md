@@ -13,7 +13,7 @@ Primary table for storing recipe data.
 
 #### Important Columns:
 - `uid` (TEXT PRIMARY KEY) - GUID in uppercase format (e.g., 'A2269D0E-9E1E-4A97-9DD0-2D5ED94A0F1E')
-- `status` (TEXT) - Sync status: 'new', 'modified', 'synced', or 'deleted'
+- `status` (TEXT) - Modification status: 'unmodified' or 'modified'
 - `sync_hash` (TEXT) - **Critical**: SHA256 hash for sync tracking (64 hex characters)
 - `name` (TEXT) - Recipe name
 - `ingredients` (TEXT) - Ingredients list
@@ -71,11 +71,9 @@ def generate_sync_hash():
 
 ## Status Field Values
 
-Encrypted string keys and their meanings:
-- `44433` → "new" - Newly created locally
-- `44497` → "synced" - In sync with server
-- `41553` → "deleted" - Marked for deletion
-- `44295` → (another valid sync state)
+Simple string values indicating modification state:
+- `"unmodified"` - Entity matches server state
+- `"modified"` - Entity has local changes (value not confirmed in database)
 
 ## Required Steps for Manual Recipe Insertion
 
@@ -103,7 +101,7 @@ INSERT INTO recipes (
     'Recipe Name',
     'Ingredient list',
     'Directions',
-    'new',           -- Must be 'new' for locally created
+    'modified',      -- Set to 'modified' for locally created
     1,               -- Mark as needing sync
     julianday('now'), -- Current timestamp
     'YOUR-SYNC-HASH-HERE'
@@ -158,7 +156,7 @@ During sync, Paprika compares local vs server sync hashes:
 ### Sync Loop Prevention
 To avoid the sync loop issue:
 1. Always use properly formatted sync_hash (64 hex chars)
-2. Set status to 'new' for locally created items
+2. Set status to 'modified' for locally created items
 3. Ensure is_synced = 1 for items needing sync
 
 ## Database Files
