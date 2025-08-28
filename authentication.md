@@ -2,15 +2,13 @@
 
 ## Overview
 
-Paprika uses a dual-layer authentication system combining:
-1. **License validation** - Cryptographic signature verification using RSA
-2. **Server authentication** - JWT token-based API authentication
+Paprika uses a dual-layer authentication system: local RSA signature validation of license data followed by server authentication that returns a JWT token for API access. Licenses are bound to specific devices via machine-specific identifiers.
 
 ## Complete Authentication Flow
 
 ### Step 1: License Data Collection
 
-The client must have a valid Paprika license with these components:
+The client retrieves encrypted license data from the local SQLite database (`purchases` table). This data includes the license key, customer information, product identifier, purchase date, and a device-specific identifier (`install_uid`) that binds the license to a particular machine.
 
 #### License Data Structure
 ```json
@@ -27,17 +25,26 @@ The client must have a valid Paprika license with these components:
 }
 ```
 
-#### Device ID Generation on Windows
-Device ID is generated using Windows registry:
-1. Check `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid`
-2. Fallback to `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Device`  
-3. If neither exists, generate new GUID and store in registry
+#### Device ID Generation
+
+The `install_uid` field in the license binds it to a specific device. On Windows, Paprika obtains this ID from:
+
+1. `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Cryptography\MachineGuid` (primary)
+2. `HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Device` (fallback)
+3. If neither exists, generates and stores a new GUID
+
+Other platforms likely use:
+- **macOS**: IOPlatformUUID from IOKit framework
+- **Linux**: `/etc/machine-id` or `/var/lib/dbus/machine-id`
+- **iOS**: `identifierForVendor` or keychain-stored UUID
+- **Android**: `Settings.Secure.ANDROID_ID` or stored UUID
+
+The device ID is part of the signed license data, making it tamper-evident.
 
 ### Step 2: License Validation
 
-Before authentication, the client validates the license:
+After decryption, the client validates the license using RSA signature verification with Paprika's public key (embedded in the application binary). The signature proves the license was issued by Paprika's servers and hasn't been modified.
 
-#### RSA Signature Verification
 ```csharp
 // Load Paprika's public key (embedded in app)
 RsaKeyParameters publicKey = PublicKeyFactory.CreateKey(publicKeyBytes);
@@ -49,16 +56,15 @@ signer.BlockUpdate(Encoding.UTF8.GetBytes(licenseDataJson), 0, dataBytes.Length)
 bool isValid = signer.VerifySignature(Convert.FromBase64String(signature));
 ```
 
-#### Validation Checks
-1. **Signature verification** - RSA signature must be valid
-2. **Product match** - Must be for "com.hindsightlabs.paprika.windows.v3" or similar product_id
-3. **Device match** - install_uid must match current machine device ID
-4. **Status checks** - Not disabled or refunded
-5. **License format** - Must parse as valid JSON
+Validation also checks:
+- Product ID matches expected value (e.g., "com.hindsightlabs.paprika.windows.v3")
+- Device ID matches current machine
+- License status (not disabled or refunded)
+- Valid JSON format with required fields
 
 ### Step 3: Server Authentication
 
-With valid license, client performs server login:
+With a validated license, the client authenticates with the server by sending credentials and license data to obtain a JWT token:
 
 #### Login API Call
 ```http
@@ -108,7 +114,7 @@ Content-Disposition: form-data; name=signature
 
 ### Step 4: JWT Token Usage
 
-The server returns a JSON response with the JWT token:
+The server responds with:
 
 ```json
 {
@@ -118,7 +124,7 @@ The server returns a JSON response with the JWT token:
 }
 ```
 
-This JWT token is then used for all subsequent API calls:
+This token is used in all subsequent API requests:
 
 ```http
 Authorization: Bearer JWT-TOKEN-HERE
@@ -160,107 +166,37 @@ CREATE TABLE purchases (
 
 ### Authentication State Management
 
-The client manages authentication through `GClass24`:
+The authentication process follows this sequence:
+1. Load and decrypt license from SQLite database
+2. Validate RSA signature and device ID
+3. POST credentials and license to `/api/v2/account/login/`
+4. Store returned JWT token
+5. Configure HTTP client with Bearer token
 
-#### Login Process
-1. **License retrieval** - Load from database
-2. **License validation** - Verify signature and device
-3. **Server login** - POST to login endpoint
-4. **Token storage** - Store JWT in encrypted settings
-5. **API setup** - Configure HTTP client with Bearer token
+JWT tokens have long expiration times (hours or days). The client revalidates licenses daily and establishes WebSocket connections for real-time sync.
 
-#### Session Management
-- JWT tokens appear to have long expiration (hours/days)
-- Client automatically refreshes license validation daily
-- WebSocket connection established for real-time sync notifications
+## Security Implementation
 
-## Security Considerations
+### Cryptographic Protection
+Licenses use RSA signatures (SHA256withRSA) that can only be created with Paprika's private key. Device binding via `install_uid` ties licenses to specific machines. Product IDs prevent cross-version license use.
 
-### License Protection
-- **RSA signatures** prevent license tampering
-- **Device binding** prevents license sharing
-- **Product specificity** prevents cross-app usage
+### Network Security  
+All API communication uses HTTPS. JWT tokens provide stateless authentication. The server independently validates license signatures.
 
-### Network Security
-- **HTTPS only** - All API communication encrypted
-- **JWT tokens** - Stateless authentication
-- **Signature validation** - Server verifies license signatures
+### Known Attack Vectors
+- License and token extraction from SQLite database or memory
+- JWT interception via network capture (requires HTTPS compromise)
+- Device ID spoofing via registry modification (Windows) or equivalent on other platforms
 
-### Attack Surface
-- **License extraction** - Possible from database/memory
-- **Token interception** - Network captures could expose JWT
-- **Device spoofing** - Registry manipulation could bypass device checks
+## Implementation Requirements
 
-## Potential Implementation
+A working client requires:
+1. Valid license data with RSA signature (cannot be forged without private key)
+2. Matching device ID from the licensed machine
+3. User account credentials (email and password)
+4. HTTP client supporting multipart/form-data with specific formatting
+5. JWT token handling for API requests
 
-For clean-room implementation, you would need:
+## Technical Summary
 
-1. **Valid license** with matching signature (cannot be generated without Paprika's private key)
-2. **Device ID** matching the license
-3. **Account credentials** for the licensed user
-4. **HTTP client** capable of multipart form uploads
-5. **JWT handling** for subsequent API calls
-
-The cryptographic signature verification means you cannot create arbitrary licenses - you must use legitimate purchase data from the Paprika store.
-
-## Example Authentication Code
-
-```python
-import requests
-import json
-import hashlib
-import hmac
-from Crypto.PublicKey import RSA
-from Crypto.Signature import pkcs1_15
-from Crypto.Hash import SHA256
-
-def authenticate_paprika(email, password, license_data, signature):
-    # Prepare multipart form data
-    files = {
-        'email': (None, email),
-        'password': (None, password),
-        'data': (None, license_data),  # JSON string
-        'signature': (None, signature)  # Base64 string
-    }
-    
-    # Generate boundary and headers
-    boundary = str(uuid.uuid4())
-    headers = {
-        'User-Agent': 'Paprika Recipe Manager 3/3.3.1 (Microsoft Windows NT 10.0.26100.0)',
-        'Accept-Encoding': 'gzip, deflate',
-        'Expect': '100-continue'
-    }
-    
-    # Send login request with proper multipart formatting
-    response = requests.post(
-        'https://www.paprikaapp.com/api/v2/account/login/',
-        files=files,
-        headers=headers
-    )
-    
-    if response.status_code == 200:
-        result = response.json()
-        jwt_token = result['result']['token']
-        return jwt_token
-    else:
-        raise Exception(f"Authentication failed: {response.status_code}")
-
-def make_authenticated_request(endpoint, jwt_token):
-    headers = {
-        'Authorization': f'Bearer {jwt_token}',
-        'User-Agent': 'Paprika Recipe Manager 3/3.3.1 (Microsoft Windows NT 10.0.26100.0)'
-    }
-    
-    response = requests.get(
-        f'https://www.paprikaapp.com/api/v2/{endpoint}',
-        headers=headers
-    )
-    
-    return response.json()
-```
-
-## Conclusion
-
-The Paprika authentication system is well-designed with multiple layers of security. However, the reliance on client-side license validation and the exposure of license data in the local database creates potential attack vectors for determined adversaries.
-
-For legitimate API access, users must have valid Paprika licenses and account credentials. The system cannot be bypassed without either compromising the RSA private key (extremely difficult) or obtaining valid license data from legitimate purchases.
+The authentication system uses RSA signatures for license validation and JWT tokens for session management. The RSA signature scheme prevents license forgery since only Paprika's servers have the private key. Device binding adds another validation layer but can potentially be bypassed through device ID spoofing. The system's security primarily relies on the cryptographic signature that cannot be forged without the private key.
