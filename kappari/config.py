@@ -12,7 +12,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
-import log
+from . import log
 
 # Load .env file using default approach
 load_dotenv()
@@ -50,7 +50,9 @@ class Config:
                 return Path(localappdata) / "Paprika Recipe Manager 3"
         elif sys.platform == "darwin":
             return (
-                Path.home() / "Library" / "Application Support"
+                Path.home()
+                / "Library"
+                / "Application Support"
                 / "Paprika Recipe Manager 3"
             )
         # No default for Linux - user must specify
@@ -68,9 +70,7 @@ class Config:
             platform_default = self._get_platform_default_root()
             if platform_default and platform_default.exists():
                 self.root_dir = platform_default
-                log.info(
-                    "Auto-detected platform default: %s", self.root_dir
-                )
+                log.info("Auto-detected platform default: %s", self.root_dir)
             else:
                 self.root_dir = None
                 log.info("No root directory set, using individual path config")
@@ -79,7 +79,7 @@ class Config:
         self,
         env_key: str,
         default_relative_path: str,
-        fallback_absolute: Optional[str] = None
+        fallback_absolute: Optional[str] = None,
     ) -> Optional[str]:
         """
         Resolve path using root directory + override logic.
@@ -112,12 +112,10 @@ class Config:
         self.db_file = self._resolve_path(
             "KAPPARI_DB_FILE",
             "Database/Paprika.sqlite",
-            self._find_default_db_path()  # Fallback to old logic
+            self._find_default_db_path(),  # Fallback to old logic
         )
         self.db_backup_dir = self._resolve_path(
-            "KAPPARI_DB_BACKUP_DIR",
-            "Database/Backups",
-            None
+            "KAPPARI_DB_BACKUP_DIR", "Database/Backups", None
         )
 
         # Validate required fields
@@ -189,9 +187,7 @@ class Config:
         """Setup logging configuration."""
 
         self.log_level = os.getenv("KAPPARI_LOG_LEVEL", "INFO")
-        log_dir_str = self._resolve_path(
-            "KAPPARI_LOG_DIR", "Logs", "./logs"
-        )
+        log_dir_str = self._resolve_path("KAPPARI_LOG_DIR", "Logs", "./logs")
         self.log_dir = Path(log_dir_str)
         self.debug_api_requests = self._parse_bool(
             os.getenv("KAPPARI_DEBUG_API_REQUESTS", "false")
@@ -437,28 +433,3 @@ def get_config() -> Config:
 def reload_config() -> Config:
     """Reload configuration from environment"""
     return _ConfigSingleton.reload_instance()
-
-
-if __name__ == "__main__":
-    # Test configuration loading
-    try:
-        cfg = get_config()
-        log.info("Configuration loaded successfully")
-        log.info("Config: %s", cfg)
-
-        if cfg.validate_credentials():
-            log.info("Credentials are set")
-        else:
-            log.warning(
-                "Missing credentials (KAPPARI_EMAIL and/or KAPPARI_PASSWORD)"
-            )
-
-        if Path(cfg.db_file).exists():
-            log.info("Database found at: %s", cfg.db_file)
-        else:
-            log.error("Database not found at: %s", cfg.db_file)
-            sys.exit(1)
-
-    except Exception as e:
-        log.error("Configuration Error: %s", e)
-        sys.exit(1)

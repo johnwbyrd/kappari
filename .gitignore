@@ -28,6 +28,11 @@ state/
 __pycache__/
 *.pyc
 
+# Python package build artifacts  
+*.egg-info/
+build/
+dist/
+
 # npm files (this is just documentation)
 package*.json
 

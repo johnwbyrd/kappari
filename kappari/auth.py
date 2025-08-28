@@ -6,16 +6,15 @@ Authentication implementation
 import base64
 import json
 import sqlite3
-import sys
 from pathlib import Path
 
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA1
 from Crypto.Protocol.KDF import PBKDF2
 
-import log
-from config import get_config
-from network_client import get_client
+from . import log
+from .config import get_config
+from .network_client import get_client
 
 
 class Auth:
@@ -156,71 +155,3 @@ class Auth:
     def make_authenticated_request(self, endpoint, jwt_token):
         """Make an authenticated request to API"""
         return self.client.make_authenticated_request(endpoint, jwt_token)
-
-
-def main():
-    # Example usage
-    auth = Auth()
-
-    try:
-        # Decrypt license data
-        log.info("Decrypting license data...")
-        auth.decrypt_license_data()
-        log.info("License data decrypted successfully")
-
-        # Parse license data to show what we have
-        license_json = json.loads(auth.license_data)
-        log.info("License Information:")
-        log.info("  Key: %s", license_json.get("key", "N/A"))
-        log.info("  Name: %s", license_json.get("name", "N/A"))
-        log.info("  Email: %s", license_json.get("email", "N/A"))
-        log.info("  Product: %s", license_json.get("product_id", "N/A"))
-        log.info(
-            "  Purchase Date: %s", license_json.get("purchase_date", "N/A")
-        )
-
-        # Use credentials from config if available
-        if auth.config.validate_credentials():
-            jwt_token = auth.authenticate(
-                auth.config.email, auth.config.password
-            )
-
-            if jwt_token:
-                # Example of making an authenticated request
-                log.info("Testing authenticated API access...")
-                response = auth.make_authenticated_request(
-                    "sync/recipes/", jwt_token
-                )
-                if response and response.status_code == 200:
-                    log.info("Successfully made authenticated request")
-                    if auth.config.pretty_json:
-                        log.debug(
-                            "Response: %s",
-                            json.dumps(response.json(), indent=2),
-                        )
-                    else:
-                        log.debug("Response: %s", response.json())
-                else:
-                    log.error(
-                        "API request failed: %s",
-                        response.status_code if response else "No response",
-                    )
-                    sys.exit(1)
-            else:
-                log.error("Authentication failed")
-                sys.exit(1)
-        else:
-            log.error("Credentials not found in config")
-            log.error(
-                "Set KAPPARI_EMAIL and KAPPARI_PASSWORD in your .env file "
-                "to test authentication"
-            )
-            sys.exit(1)
-
-    except Exception as e:
-        log.error("Error: %s", e)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()

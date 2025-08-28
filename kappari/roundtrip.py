@@ -33,8 +33,6 @@ Technical Details:
 import base64
 import json
 import sqlite3
-import sys
-import traceback
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -43,8 +41,8 @@ from Crypto.Hash import SHA1
 from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Random import get_random_bytes
 
-import log
-from config import get_config
+from . import log
+from .config import get_config
 
 
 def encrypt_paprika_data(
@@ -379,45 +377,3 @@ def perform_round_trip_test():
     log.info("=" * 70)
 
     return data_matches and signature_matches
-
-
-def main():
-    """
-    Main entry point for the round-trip verification script.
-
-    This script requires a Paprika database to be present. If no database
-    is found, it will exit with an informative message.
-    """
-    config = get_config()
-
-    # Check if database exists
-    if not Path(config.db_file).exists():
-        log.info("=" * 70)
-        log.info("No Paprika database found")
-        log.info("=" * 70)
-        log.info("\nThis script requires a Paprika database to verify the")
-        log.info("encryption implementation against real data.")
-        log.info("\nDatabase file checked: %s", config.db_file)
-        log.info("\nTo use this script:")
-        log.info(
-            "1. Ensure Paprika 3 is installed and has been run at least once"
-        )
-        log.info(
-            "2. Set KAPPARI_DB_FILE in your .env file to point to "
-            "Paprika.sqlite"
-        )
-        log.info("3. Or copy a Paprika.sqlite file to the expected location")
-        return 1
-
-    # Run the round-trip test
-    try:
-        success = perform_round_trip_test()
-        return 0 if success else 1
-    except Exception as e:
-        log.error("Unexpected error during round-trip test: %s", e)
-        log.debug(traceback.format_exc())
-        return 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

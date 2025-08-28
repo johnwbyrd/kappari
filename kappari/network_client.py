@@ -6,14 +6,13 @@ Handles all HTTP requests with dry run support and proper logging.
 """
 
 import json
-import sys
 import uuid
 from typing import Any, Dict, Optional
 
-import log
-from config import get_config
+from . import log
+from .config import get_config
 
-# Try to import requests and requests-toolbelt, but handle if not available
+# Try to import requests, but handle if not available
 try:
     import requests
 
@@ -371,24 +370,3 @@ kappari_client = NetworkClient()
 def get_client() -> NetworkClient:
     """Get the singleton network client instance."""
     return kappari_client
-
-
-if __name__ == "__main__":
-    # Test the network client
-    try:
-        net_client = get_client()
-
-        log.info("Network client initialized")
-        log.info("Base URL: %s", net_client.config.api_base_url)
-        log.info("Dry run mode: %s", net_client.config.dry_run)
-        log.info(
-            "Debug API requests: %s", net_client.config.debug_api_requests
-        )
-
-        # Test client functionality without making real requests
-        log.info("Network client test complete - no requests made")
-        log.info("Use auth.py to test actual authentication flow")
-
-    except Exception as e:
-        log.error("Error: %s", e)
-        sys.exit(1)
