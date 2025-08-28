@@ -77,7 +77,7 @@ def test_real_network_authentication(
         warnings.warn(
             "Network test passed in dry-run mode - no real HTTP requests made",
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
     else:
         # In live mode, should return actual JWT token

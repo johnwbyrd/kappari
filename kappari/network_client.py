@@ -363,10 +363,13 @@ class NetworkClient:
         raise ValueError(f"Unsupported HTTP method: {method}")
 
 
-# Create a singleton instance
-kappari_client = NetworkClient()
+# Lazy singleton pattern - only create when first requested
+_kappari_client = None
 
 
 def get_client() -> NetworkClient:
     """Get the singleton network client instance."""
-    return kappari_client
+    global _kappari_client
+    if _kappari_client is None:
+        _kappari_client = NetworkClient()
+    return _kappari_client

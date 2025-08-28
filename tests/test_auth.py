@@ -44,7 +44,7 @@ def test_full_authentication_flow(
             "Authentication test passed in dry-run mode - "
             "no real network call made",
             UserWarning,
-            stacklevel=2
+            stacklevel=2,
         )
     else:
         # In live mode, should return actual JWT token
