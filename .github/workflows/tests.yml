@@ -24,7 +24,9 @@ jobs:
         pip install -e ".[dev]"
         
     - name: Run tests
-      run: pytest -v
+      run: pytest -v -m "not requires_database and not requires_credentials and not requires_network"
+      # Skip tests that require external dependencies (database files, credentials, network access)
+      # Only run tests that can execute with the packages and code available in CI environment
       
     - name: Run ruff check
       run: ruff check .
