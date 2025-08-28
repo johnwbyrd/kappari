@@ -355,6 +355,7 @@ if __name__ == "__main__":
             log.info("Database found at: %s", cfg.db_path)
         else:
             log.error("Database not found at: %s", cfg.db_path)
+            sys.exit(1)
 
     except Exception as e:
         log.error("Configuration Error: %s", e)

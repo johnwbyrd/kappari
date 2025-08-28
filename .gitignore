@@ -13,6 +13,9 @@ ilspy/
 # Logs
 logs/
 
+# Paprika Recipe Manager data (contains personal data)
+state/
+
 # Temporary files
 *.tmp
 *.temp

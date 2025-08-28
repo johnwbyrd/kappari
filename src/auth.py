@@ -205,14 +205,17 @@ def main():
                         "API request failed: %s",
                         response.status_code if response else "No response",
                     )
+                    sys.exit(1)
             else:
                 log.error("Authentication failed")
+                sys.exit(1)
         else:
-            log.warning("Credentials not found in config")
-            log.info(
+            log.error("Credentials not found in config")
+            log.error(
                 "Set KAPPARI_EMAIL and KAPPARI_PASSWORD in your .env file "
                 "to test authentication"
             )
+            sys.exit(1)
 
     except Exception as e:
         log.error("Error: %s", e)
