@@ -1,6 +1,6 @@
 # Kappari: Understanding Paprika 3's API and Database
 
-This project documents how Paprika Recipe Manager 3 works under the hood.  Kappari documents Paprika Recipe Manager's REST API and local SQLite database.
+This reverse-engineering documentation project describes how Paprika Recipe Manager 3 works, under the hood.  Kappari documents Paprika Recipe Manager's v2 REST API and local SQLite database, used in v3 of the Paprika Recipe Manager product.
 
 ## What is This?
 
@@ -54,7 +54,7 @@ This project provides **documentation and working code**. You can use it to unde
 
 The documentation files (`authentication.md`, `crypto.md`, `sqlite.md`, etc.) contain detailed technical information, while `kappari/` has the working Python library that implements the protocols. The `.env.example` file serves as a configuration template.
 
-The Python code is designed to be readable by beginners. It includes plenty of comments and focuses on clarity over cleverness.
+The Python code includes plenty of comments and focuses on clarity over cleverness.
 
 ## The Technical Bits
 
@@ -65,7 +65,7 @@ Paprika 3 uses a REST API (version 2) to sync data between devices. The API requ
 Locally, Paprika stores everything in a SQLite database file. This includes your recipes with title, ingredients, directions, photos, and ratings. Categories help organize your recipes with tags. Grocery lists store your shopping lists with checked and unchecked items. Pantry items track your ingredient inventory, and bookmarks save recipe links from websites you've visited.
 
 ### The Crypto Stuff
-Paprika uses some interesting cryptography to keep your data secure. AES-256-CBC encryption protects license data (think of it as a very secure lock), while RSA signatures prove your license is legitimate. PBKDF2 key derivation turns passwords into encryption keys, and Base64 encoding makes binary data text-friendly.
+Paprika uses some interesting cryptography to keep its license data secure. AES-256-CBC encryption protects license data, while RSA signatures prove your license is legitimate. PBKDF2 key derivation turns passwords into encryption keys, and Base64 encoding makes binary data text-friendly.
 
 Don't worry if that sounds complex - the code examples show exactly how it works.
 
