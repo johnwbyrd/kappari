@@ -47,6 +47,8 @@ We captured HTTP requests using Fiddler, decompiled the Windows .NET executable 
 
 The result is clean, documented code that shows exactly how a modern recipe app works behind the scenes.
 
+Paprika Recipe Manager is copyrighted software by Hindsight Labs, LLC.  No affiliation between this project and Hindsight Labs, LLC, is expressed or implied.
+
 ## Contributing
 
 Found something we missed? Spotted an error? Contributions welcome! This documentation improves as more developers explore and verify the findings.
