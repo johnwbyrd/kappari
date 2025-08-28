@@ -38,9 +38,9 @@ File integrity is maintained through photo_hash fields containing SHA256 hashes 
 
 ### Data Type Conventions
 
-The database design reflects cross-platform compatibility requirements and API integration needs. Boolean values are stored as integers in SQLite (0 for false, 1 for true) following SQLite's standard convention, but these values are transformed into JSON boolean types in API responses.
+Boolean values are stored as integers in SQLite (0 for false, 1 for true) following SQLite's standard convention, but these values are transformed into JSON boolean types in API responses.
 
-Date and time handling uses SQLite's Julian date system for internal storage, which provides precise timestamp calculations and efficient date-based sorting and filtering.
+Date and time handling uses SQLite's Julian date system for internal storage.
 
 Text encoding uses UTF-8 consistently throughout the database to ensure proper support for international characters and cooking terminology in multiple languages. The schema preserves the distinction between NULL values and empty strings, which carries semantic meaning in the synchronization logic where NULL often indicates uninitialized fields while empty strings represent intentionally blank content.
 
