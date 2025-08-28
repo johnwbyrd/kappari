@@ -16,11 +16,10 @@ from config import get_config
 # Try to import requests and requests-toolbelt, but handle if not available
 try:
     import requests
-    from requests_toolbelt import MultipartEncoder
 
-    REQUESTS_AVAILABLE = True
+    kappari_requests_available = True
 except ImportError:
-    REQUESTS_AVAILABLE = False
+    kappari_requests_available = False
     log.warning("requests library not available. Network features disabled.")
 
 
@@ -41,7 +40,7 @@ class NetworkClient:
             if isinstance(body, bytes):
                 try:
                     body = body.decode("utf-8")
-                except:
+                except UnicodeDecodeError:
                     body = f"<{len(prepared.body)} bytes>"
             log.debug("Body: %s", body)
         log.debug("=== END PREPARED REQUEST ===")
@@ -105,32 +104,8 @@ class NetworkClient:
         except (ValueError, json.JSONDecodeError):
             log.debug("Text Body: %s", response.text)
 
-    def post(
-        self,
-        endpoint: str,
-        data: Dict[str, Any] = None,
-        files: Dict[str, Any] = None,
-        headers: Dict[str, str] = None,
-    ) -> Optional[requests.Response]:
-        """
-        Make a POST request.
-
-        Args:
-            endpoint: API endpoint (relative to base URL)
-            data: Form data dictionary
-            files: Files dictionary (for multipart/form-data)
-            headers: HTTP headers
-
-        Returns:
-            Response object or None if dry run or error
-        """
-        url = f"{self.config.api_base_url}/{endpoint.lstrip('/')}"
-
-        # Use default headers if none provided
-        if headers is None:
-            headers = {}
-
-        # Add required headers to match captured request format
+    def _add_default_headers(self, headers: Dict[str, str]) -> None:
+        """Add default headers if not present."""
         if "User-Agent" not in headers:
             headers["User-Agent"] = self.config.user_agent
         if "Accept-Encoding" not in headers:
@@ -138,75 +113,40 @@ class NetworkClient:
         if "Expect" not in headers:
             headers["Expect"] = "100-continue"
 
-        # For debugging, log the request
-        if self.config.debug_api_requests:
-            self._log_request("POST", url, headers, files or data)
+    def _build_multipart_body(
+        self, files: Dict[str, Any]
+    ) -> tuple[bytes, str]:
+        """Build multipart form data body."""
+        boundary = str(uuid.uuid4())
+        body_parts = []
 
-        # Use custom multipart construction for files to match exact format
-        if files:
-            # Generate GUID-style boundary (matching captured format)
-            boundary = str(uuid.uuid4())
+        for field_name, field_value in files.items():
+            if isinstance(field_value, tuple) and len(field_value) == 2:
+                filename, content = field_value
+                value = str(content)
+            else:
+                value = str(field_value)
 
-            # Manually construct multipart body to match captured request exactly
-            body_parts = []
-            for field_name, field_value in files.items():
-                if isinstance(field_value, tuple) and len(field_value) == 2:
-                    filename, content = field_value
-                    value = str(content)
-                else:
-                    value = str(field_value)
+            # Match captured format: Content-Type before Content-Disposition
+            part = f"--{boundary}\r\n"
+            part += "Content-Type: text/plain; charset=utf-8\r\n"
+            part += f"Content-Disposition: form-data; name={field_name}\r\n"
+            part += "\r\n"
+            part += f"{value}\r\n"
+            body_parts.append(part)
 
-                # Match captured format exactly: Content-Type before Content-Disposition, no quotes around field name
-                part = f"--{boundary}\r\n"
-                part += "Content-Type: text/plain; charset=utf-8\r\n"
-                part += (
-                    f"Content-Disposition: form-data; name={field_name}\r\n"
-                )
-                part += "\r\n"
-                part += f"{value}\r\n"
-                body_parts.append(part)
+        # Add final boundary
+        body_parts.append(f"--{boundary}--\r\n")
+        body = "".join(body_parts).encode("utf-8")
 
-            # Add final boundary
-            body_parts.append(f"--{boundary}--\r\n")
+        return body, boundary
 
-            # Join all parts
-            body = "".join(body_parts).encode("utf-8")
-
-            # Set headers
-            headers["Content-Type"] = (
-                f'multipart/form-data; boundary="{boundary}"'
-            )
-            headers["Content-Length"] = str(len(body))
-
-            # Prepare request with custom body
-            req = requests.Request(
-                method="POST", url=url, data=body, headers=headers
-            )
-        else:
-            # Standard request for non-multipart data
-            req = requests.Request(
-                method="POST", url=url, data=data, headers=headers
-            )
-
-        prepared = req.prepare()
-
-        # Log the prepared request if debugging
-        if self.config.debug_api_requests:
-            self._log_prepared_request(prepared)
-
-        # Check if we're in dry run mode
-        if self.config.dry_run:
-            log.info("DRY RUN: Would POST to %s", url)
-            if self.config.debug_api_requests:
-                self._log_response(None)
-            return None
-
-        # Check if requests is available
-        if not REQUESTS_AVAILABLE:
+    def _send_request(self, prepared) -> Optional[requests.Response]:
+        """Send a prepared request."""
+        if not kappari_requests_available:
             raise RuntimeError("requests library not available")
 
         try:
-            # Send the prepared request
             session = requests.Session()
             response = session.send(
                 prepared,
@@ -224,11 +164,68 @@ class NetworkClient:
             log.error("POST request failed: %s", e)
             return None
 
+    def post(
+        self,
+        endpoint: str,
+        data: Optional[Dict[str, Any]] = None,
+        files: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Optional[requests.Response]:
+        """
+        Make a POST request.
+
+        Args:
+            endpoint: API endpoint (relative to base URL)
+            data: Form data dictionary
+            files: Files dictionary (for multipart/form-data)
+            headers: HTTP headers
+
+        Returns:
+            Response object or None if dry run or error
+        """
+        url = f"{self.config.api_base_url}/{endpoint.lstrip('/')}"
+
+        if headers is None:
+            headers = {}
+
+        self._add_default_headers(headers)
+
+        if self.config.debug_api_requests:
+            self._log_request("POST", url, headers, files or data)
+
+        # Build request based on whether we have files
+        if files:
+            body, boundary = self._build_multipart_body(files)
+            headers["Content-Type"] = (
+                f'multipart/form-data; boundary="{boundary}"'
+            )
+            headers["Content-Length"] = str(len(body))
+            req = requests.Request(
+                method="POST", url=url, data=body, headers=headers
+            )
+        else:
+            req = requests.Request(
+                method="POST", url=url, data=data, headers=headers
+            )
+
+        prepared = req.prepare()
+
+        if self.config.debug_api_requests:
+            self._log_prepared_request(prepared)
+
+        if self.config.dry_run:
+            log.info("DRY RUN: Would POST to %s", url)
+            if self.config.debug_api_requests:
+                self._log_response(None)
+            return None
+
+        return self._send_request(prepared)
+
     def get(
         self,
         endpoint: str,
-        params: Dict[str, Any] = None,
-        headers: Dict[str, str] = None,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
     ) -> Optional[requests.Response]:
         """
         Make a GET request.
@@ -265,7 +262,7 @@ class NetworkClient:
             return None
 
         # Check if requests is available
-        if not REQUESTS_AVAILABLE:
+        if not kappari_requests_available:
             raise RuntimeError("requests library not available")
 
         try:
@@ -368,12 +365,12 @@ class NetworkClient:
 
 
 # Create a singleton instance
-client = NetworkClient()
+kappari_client = NetworkClient()
 
 
 def get_client() -> NetworkClient:
     """Get the singleton network client instance."""
-    return client
+    return kappari_client
 
 
 if __name__ == "__main__":

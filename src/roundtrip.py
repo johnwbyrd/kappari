@@ -32,10 +32,11 @@ Technical Details:
 
 import base64
 import json
-import os
 import sqlite3
 import sys
-from typing import Tuple
+import traceback
+from pathlib import Path
+from typing import Optional, Tuple
 
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA1
@@ -47,7 +48,7 @@ from config import get_config
 
 
 def encrypt_paprika_data(
-    plaintext: str, password: str, salt: bytes = None
+    plaintext: str, password: str, salt: Optional[bytes] = None
 ) -> Tuple[str, bytes]:
     """
     Encrypt data using Paprika's encryption algorithm.
@@ -100,7 +101,7 @@ def encrypt_paprika_data(
     plaintext_bytes = plaintext.encode("utf-8")
 
     # Apply PKCS#7 padding
-    # Padding ensures the data length is a multiple of AES block size (16 bytes)
+    # Padding ensures data length is multiple of AES block size
     block_size = 16
     padding_length = block_size - (len(plaintext_bytes) % block_size)
     padding = bytes([padding_length] * padding_length)
@@ -183,7 +184,7 @@ def decrypt_paprika_data(
         raise ValueError("Invalid PKCS#7 padding")
 
     except Exception as e:
-        raise Exception(f"Decryption failed: {e}")
+        raise Exception(f"Decryption failed: {e}") from e
 
 
 def read_encrypted_data_from_db(db_path: str) -> Tuple[str, str]:
@@ -199,7 +200,7 @@ def read_encrypted_data_from_db(db_path: str) -> Tuple[str, str]:
     Raises:
         Exception: If database doesn't exist or has no purchase data
     """
-    if not os.path.exists(db_path):
+    if not Path(db_path).exists():
         raise FileNotFoundError(f"Database not found: {db_path}")
 
     conn = sqlite3.connect(db_path)
@@ -390,7 +391,7 @@ def main():
     config = get_config()
 
     # Check if database exists
-    if not os.path.exists(config.db_path):
+    if not Path(config.db_path).exists():
         log.info("=" * 70)
         log.info("No Paprika database found")
         log.info("=" * 70)
@@ -402,7 +403,8 @@ def main():
             "1. Ensure Paprika 3 is installed and has been run at least once"
         )
         log.info(
-            "2. Set KAPPARI_DB_PATH in your .env file to point to Paprika.sqlite"
+            "2. Set KAPPARI_DB_PATH in your .env file to point to "
+            "Paprika.sqlite"
         )
         log.info("3. Or copy a Paprika.sqlite file to the expected location")
         return 1
@@ -413,8 +415,6 @@ def main():
         return 0 if success else 1
     except Exception as e:
         log.error("Unexpected error during round-trip test: %s", e)
-        import traceback
-
         log.debug(traceback.format_exc())
         return 1
 

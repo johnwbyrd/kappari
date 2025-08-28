@@ -5,9 +5,9 @@ Authentication implementation
 
 import base64
 import json
-import os
 import sqlite3
 import sys
+from pathlib import Path
 
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA1
@@ -29,7 +29,7 @@ class Auth:
         """Decrypt license data from SQLite database"""
         log.debug("Starting license data decryption")
 
-        if not os.path.exists(self.config.db_path):
+        if not Path(self.config.db_path).exists():
             log.error("Database not found: %s", self.config.db_path)
             raise Exception(f"Database not found: {self.config.db_path}")
 
@@ -115,8 +115,7 @@ class Auth:
                 padding_bytes = decrypted_padded[-padding_len:]
                 if all(b == padding_len for b in padding_bytes):
                     decrypted = decrypted_padded[:-padding_len]
-                    result = decrypted.decode("utf-8")
-                    return result
+                    return decrypted.decode("utf-8")
 
             return "Decryption failed: Invalid padding"
 
@@ -127,14 +126,15 @@ class Auth:
         """Authenticate with server and get JWT token"""
         if not self.license_data or not self.signature:
             raise Exception(
-                "License data not decrypted. Call decrypt_license_data() first."
+                "License data not decrypted. "
+                "Call decrypt_license_data() first."
             )
 
         # The license data needs to be sent as JSON
         try:
             license_json = json.loads(self.license_data)
         except json.JSONDecodeError as e:
-            raise Exception(f"Invalid license data JSON: {e}")
+            raise Exception(f"Invalid license data JSON: {e}") from e
 
         log.info("Attempting to authenticate with email: %s", email)
         log.debug("License key: %s", license_json.get("key", "N/A"))
@@ -210,7 +210,8 @@ def main():
         else:
             log.warning("Credentials not found in config")
             log.info(
-                "Set KAPPARI_EMAIL and KAPPARI_PASSWORD in your .env file to test authentication"
+                "Set KAPPARI_EMAIL and KAPPARI_PASSWORD in your .env file "
+                "to test authentication"
             )
 
     except Exception as e:

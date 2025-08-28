@@ -15,13 +15,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Global flag to ensure initialization happens only once
-_initialized = False
+kappari_logging_initialized = False
 
 
 def _setup_logging() -> None:
     """Internal function to set up logging configuration."""
-    global _initialized
-    if _initialized:
+    global kappari_logging_initialized
+    if kappari_logging_initialized:
         return
 
     # Get configuration from environment
@@ -38,7 +38,8 @@ def _setup_logging() -> None:
 
     # Create formatters
     detailed_formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s",
+        "%(asctime)s - %(name)s - %(levelname)s - "
+        "%(funcName)s:%(lineno)d - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
@@ -74,10 +75,11 @@ def _setup_logging() -> None:
     logging.getLogger("urllib3").setLevel(logging.WARNING)
     logging.getLogger("requests").setLevel(logging.WARNING)
 
-    _initialized = True
+    kappari_logging_initialized = True
 
 
-# Clean public interface - these are the ONLY functions other modules should use
+# Clean public interface - these are the ONLY functions other
+# modules should use
 
 
 def debug(msg: str, *args) -> None:
@@ -118,4 +120,4 @@ if __name__ == "__main__":
     error("Testing error message")
     critical("Testing critical message")
 
-    print("Logging test complete. Check log files.")
+    info("Logging test complete. Check log files.")
